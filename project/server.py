@@ -1,29 +1,58 @@
 import json
+import sys
 import time
+from collections import Counter
 from socket import AF_INET, socket, SOCK_STREAM
-import argparse
 
-parser = argparse.ArgumentParser()
-parser.add_argument('-a', '--addr', type=str, help="server's ip-address")
-parser.add_argument('-p', '--port', type=int, help='Port')
-args = parser.parse_args()
+from util import CONFIG, parser_argument, sending_msg
 
-s = socket(AF_INET, SOCK_STREAM)
-ip_addr = args.addr if args.addr else ''
-port = args.port if args.port else 7777
-s.bind((ip_addr, port))
-s.listen(5)
-while True:
-    client, addr = s.accept()
-    data = client.recv(1000000)
-    data_json = json.loads(data.decode())
-    print(f'Статус клиента: {data_json["user"]["status"]}\n'
-          f'Ответ был отправлен клиентом в {data_json["time"]} с ip-адреса {addr[0]}:{addr[1]}.')
-    msg = {
-        "response": 202,
-        "time": time.ctime(time.time()),
-        "alert": "Подтверждено"
-    }
-    msg_json = json.dumps(msg)
-    client.send(msg_json.encode('utf-8'))
-    client.close()
+
+def handle_response(data, encoding):
+    data = json.loads(data.decode(encoding))
+    if not isinstance(data, dict):
+        raise ValueError
+    return data
+
+
+def forming_msg(data):
+    needed_keys = ["action", "time", "type", "user"]
+
+    if Counter(needed_keys) == Counter(data.keys()):
+        msg = {
+            "response": 200,
+            "time": time.ctime(time.time()),
+            "alert": "Accept"
+        }
+        print(f'От клиента полученно сообщение: {data["user"]["status"]} в {data["time"]}')
+    else:
+        msg = {
+            "response": 400,
+            "error": 'Bad Request'
+        }
+    return msg
+
+
+
+def main():
+    s = socket(AF_INET, SOCK_STREAM)
+    try:
+        connect_param = parser_argument()
+        s.bind((connect_param['addr'], connect_param['port']))
+    except ValueError:
+        print('Значение порта должно быть от 1024 до 65535')
+        sys.exit()
+    s.listen(int(CONFIG["MAX_CONNECTIONS"]))
+
+    while True:
+        client, addr = s.accept()
+        try:
+            data = client.recv(int(CONFIG['MAX_PACKAGE_LENGTH']))
+            handle_msg = handle_response(data, CONFIG['ENCODING'])
+            sending_msg(client, forming_msg(handle_msg), CONFIG['ENCODING'])
+        except ValueError:
+            print(f'Некорректное сообщение')
+        client.close()
+
+
+if __name__ == '__main__':
+    main()
