@@ -49,3 +49,4 @@ for line in subproc_ping.stdout:
 
 # без изначального преобразования байтов в кириллицу с помощью decode('cp866') появлялась ошибка
 # UnicodeDecodeError: 'utf-8' codec can't decode byte 0x8e in position 0: invalid start byte
+
