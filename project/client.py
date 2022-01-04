@@ -1,9 +1,12 @@
 import json
+import logging
 import sys
 import time
 from socket import socket, AF_INET, SOCK_STREAM
 
 from util import CONFIG, parser_argument, sending_msg
+
+logger = logging.getLogger('client')
 
 
 def handle_response(data, encoding):
@@ -11,6 +14,7 @@ def handle_response(data, encoding):
     if "response" in data:
         message = f'Сообщение от сервера: {data["alert"]}' if data['response'] == 200 else f'Ошибка: {data["error"]}'
         return f'Код ответа: {data["response"]}.\n{message}'
+    logger.critical('Некорректный формат данных')
     raise ValueError
 
 
@@ -30,13 +34,13 @@ def main():
         }
         sending_msg(s, msg, CONFIG['ENCODING'])
         data = s.recv(int(CONFIG["MAX_PACKAGE_LENGTH"]))
-        print(handle_response(data, CONFIG['ENCODING']))
+        logger.info(handle_response(data, CONFIG['ENCODING']).rstrip('\n'))
         s.close()
     except AttributeError:
-        print('Необходимо указать IP сервера')
+        logger.error('Необходимо указать IP сервера')
         sys.exit()
     except ValueError:
-        print('Значение порта должно быть от 1024 до 65535')
+        logger.error('Значение порта должно быть от 1024 до 65535')
         sys.exit()
 
 
