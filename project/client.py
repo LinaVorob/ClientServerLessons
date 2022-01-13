@@ -1,14 +1,17 @@
 import json
 import logging
+import log.client_log_config
 import sys
 import time
 from socket import socket, AF_INET, SOCK_STREAM
 
+from decor_log import log
 from util import CONFIG, parser_argument, sending_msg
 
 logger = logging.getLogger('client')
 
 
+@log
 def handle_response(data, encoding):
     data = json.loads(data.decode(encoding))
     if "response" in data:
@@ -40,7 +43,7 @@ def main():
         logger.error('Необходимо указать IP сервера')
         sys.exit()
     except ValueError:
-        logger.error('Значение порта должно быть от 1024 до 65535')
+        logger.critical('Значение порта должно быть от 1024 до 65535')
         sys.exit()
 
 

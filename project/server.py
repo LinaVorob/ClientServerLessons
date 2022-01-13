@@ -6,11 +6,13 @@ import time
 from collections import Counter
 from socket import AF_INET, socket, SOCK_STREAM
 
+from decor_log import Log
 from util import CONFIG, parser_argument, sending_msg
 
 logger = logging.getLogger('server')
 
 
+@Log()
 def handle_response(data, encoding):
     data = json.loads(data.decode(encoding))
     if not isinstance(data, dict):
@@ -19,6 +21,7 @@ def handle_response(data, encoding):
     return data
 
 
+@Log()
 def forming_msg(data):
     needed_keys = ["action", "time", "type", "user"]
 
