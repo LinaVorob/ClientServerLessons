@@ -17,6 +17,7 @@ def parser_argument(server=True):
     parser.add_argument('-a', '--addr', type=str, help="server's ip-address",
                         default=CONFIG["DEFAULT_IP_SERVER"] if server else None)
     parser.add_argument('-p', '--port', type=int, help='Port', default=CONFIG['DEFAULT_PORT'])
+    parser.add_argument('-m', '--mode', type=str, help='listen or write', default='listen')
     args = vars(parser.parse_args())
     if not args['addr'] and not server:
         raise AttributeError

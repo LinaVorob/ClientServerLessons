@@ -15,8 +15,8 @@ logger = logging.getLogger('client')
 def handle_response(data, encoding):
     data = json.loads(data.decode(encoding))
     if "response" in data:
-        message = f'Сообщение от сервера: {data["alert"]}' if data['response'] == 200 else f'Ошибка: {data["error"]}'
-        return f'Код ответа: {data["response"]}.\n{message}'
+        message = f'Сообщение: {data["alert"]}' if data['response'] == 200 else f'Ошибка: {data["error"]}'
+        return message
     logger.critical('Некорректный формат данных')
     raise ValueError
 
@@ -26,20 +26,29 @@ def main():
     try:
         connect_param = parser_argument(server=False)
         s.connect((connect_param['addr'], connect_param['port']))
-        # msg = {
-        #     "action": "presence",
-        #     "time": time.ctime(time.time()),
-        #     "type": "status",
-        #     "user": {
-        #         "account_name": CONFIG['ACCOUNT_NAME'],
-        #         "status": CONFIG["STATUS"]
-        #     }
-        # }
+
         while True:
-            msg = input("Введите сообщение: ")
-            sending_msg(s, msg, CONFIG["ENCODING"])
-            data = s.recv(int(CONFIG["MAX_PACKAGE_LENGTH"])).decode(CONFIG["ENCODING"])
-            print(f'Ответ: {data}')
+            if connect_param['mode'] == 'write':
+                user_msg = input("Введите сообщение (q - выход): ")
+                if user_msg == 'q':
+                    break
+                msg = {
+                    "action": "msg",
+                    "time": time.ctime(time.time()),
+                    "user": {
+                        "account_name": CONFIG['ACCOUNT_NAME'],
+                        "msg": user_msg
+                    }
+                }
+                sending_msg(s, msg, CONFIG["ENCODING"])
+            elif connect_param['mode'] == 'listen':
+                data = s.recv(int(CONFIG["MAX_PACKAGE_LENGTH"]))
+                if data:
+                    msg = handle_response(data, CONFIG["ENCODING"])
+                    print(msg)
+            else:
+                logger.error('Неверный параметр ввода')
+                break
         s.close()
     except AttributeError:
         logger.error('Необходимо указать IP сервера')
@@ -50,4 +59,5 @@ def main():
 
 
 if __name__ == '__main__':
+    print('Started!!!')
     main()

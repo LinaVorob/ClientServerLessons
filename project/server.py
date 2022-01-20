@@ -25,15 +25,16 @@ def handle_response(data, encoding):
 
 @Log()
 def forming_msg(data):
-    needed_keys = ["action", "time", "type", "user"]
+    print('in forming message')
+    needed_keys = ["action", "time", "user"]
 
     if Counter(needed_keys) == Counter(data.keys()):
         msg = {
             "response": 200,
             "time": time.ctime(time.time()),
-            "alert": "Accept"
+            "alert": data['user']['msg']
         }
-        logger.info(f'От клиента полученно сообщение: {data["user"]["status"]} в {data["time"]}')
+        logger.info(f'От клиента полученно сообщение: {data["user"]["msg"]} в {data["time"]}')
     else:
         msg = {
             "response": 400,
@@ -43,16 +44,16 @@ def forming_msg(data):
     return msg
 
 
-def read_requests(r, clients):
-    requests = {}
-
-    for s in r:
+def read_requests(resp, clients):
+    requests = []
+    for s in resp:
         try:
-            data = s.recv(CONFIG['MAX_PACKAGE_LENGTH']).decode('ENCODING')
+            data = s.recv(int(CONFIG['MAX_PACKAGE_LENGTH'])).decode(CONFIG['ENCODING'])
             requests[s] = data
         except:
             clients.remove(s)
     return requests
+
 
 @Log()
 def write_response(requests, w, clients):
@@ -77,29 +78,43 @@ def main():
         logger.error('Значение порта должно быть от 1024 до 65535')
         sys.exit()
     s.listen(int(CONFIG["MAX_CONNECTIONS"]))
-    s.settimeout(0.2)
+    s.settimeout(1)
     while True:
         try:
             client, addr = s.accept()
-        except OSError as e:
-            # logger.error(f'{e}')
-            # print(e)
+        except OSError:
             pass
         else:
-            print('client is appended')
             clients.append(client)
-            print(f'clients = {clients}')
         finally:
             w = []
             r = []
             try:
                 r, w, e = select.select(clients, clients, [])
-                print(r)
             except OSError as ose:
-                # print(ose)
                 pass
-        requests = read_requests(r, clients)
-        write_response(requests, w, clients)
+        try:
+            handle_msg, data = '', ''
+            if r:
+                for member in r:
+                    try:
+                        data = member.recv(int(CONFIG['MAX_PACKAGE_LENGTH']))
+                        handle_msg = handle_response(data, CONFIG['ENCODING'])
+                    except ValueError:
+                        logger.critical(f'Некорректное сообщение')
+                    except:
+                        pass
+            if data != '':
+                for member in w:
+                    print(handle_msg)
+                    sending_msg(member, forming_msg(handle_msg), CONFIG["ENCODING"])
+                else:
+                    data = ''
+        except Exception:
+            pass
+
+        # requests = read_requests(r, clients)
+        # write_response(requests, w, clients)
         # for client in w:
         #     try:
         #         sending_msg(client, 'echo', CONFIG['ENCODING'])
