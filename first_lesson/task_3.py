@@ -15,3 +15,4 @@ type_word = b'type'
 #                             ^
 # SyntaxError: bytes can only contain ASCII literal characters
 
+
