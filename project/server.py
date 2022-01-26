@@ -25,17 +25,27 @@ def handle_response(data, encoding):
 
 @Log()
 def forming_msg(data):
-    print('in forming message')
-    needed_keys = ["action", "time", "user"]
+    print('in forming')
+    presence_keys = ["action", "time", "user"]
+    msg_keys = ["action", "time", "from", 'to', 'message']
 
-    if Counter(needed_keys) == Counter(data.keys()):
+    if Counter(presence_keys) == Counter(data.keys()):
+        print('if')
         msg = {
             "response": 200,
             "time": time.ctime(time.time()),
-            "alert": data['user']['msg']
+            "alert": data['user']['message']
         }
-        logger.info(f'От клиента полученно сообщение: {data["user"]["msg"]} в {data["time"]}')
+        logger.info(f'От клиента полученно сообщение: {data["user"]["message"]} в {data["time"]}')
+    elif Counter(msg_keys) == Counter(data.keys()):
+        msg = {
+            "response": 200,
+            "time": time.ctime(time.time()),
+            "alert": data['message']
+        }
+        logger.info(f'От клиента полученно сообщение: {data["message"]} в {data["time"]}')
     else:
+        print('else')
         msg = {
             "response": 400,
             "error": 'Bad Request'
@@ -91,7 +101,7 @@ def main():
             r = []
             try:
                 r, w, e = select.select(clients, clients, [])
-            except OSError as ose:
+            except OSError:
                 pass
         try:
             handle_msg, data = '', ''
@@ -99,6 +109,7 @@ def main():
                 for member in r:
                     try:
                         data = member.recv(int(CONFIG['MAX_PACKAGE_LENGTH']))
+                        print(data)
                         handle_msg = handle_response(data, CONFIG['ENCODING'])
                     except ValueError:
                         logger.critical(f'Некорректное сообщение')
@@ -107,6 +118,7 @@ def main():
             if data != '':
                 for member in w:
                     print(handle_msg)
+                    print(forming_msg(handle_msg))
                     sending_msg(member, forming_msg(handle_msg), CONFIG["ENCODING"])
                 else:
                     data = ''
