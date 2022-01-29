@@ -36,6 +36,7 @@ def forming_msg(data):
             "time": time.ctime(time.time()),
             "alert": data['user']['message']
         }
+        print(msg)
         logger.info(f'От клиента полученно сообщение: {data["user"]["message"]} в {data["time"]}')
     elif Counter(msg_keys) == Counter(data.keys()):
         msg = {
@@ -112,12 +113,11 @@ def main():
                         print(data)
                         handle_msg = handle_response(data, CONFIG['ENCODING'])
                     except ValueError:
-                        logger.critical(f'Некорректное сообщение')
+                        pass
                     except:
                         pass
             if data != '':
                 for member in w:
-                    print(handle_msg)
                     print(forming_msg(handle_msg))
                     sending_msg(member, forming_msg(handle_msg), CONFIG["ENCODING"])
                 else:
