@@ -18,7 +18,9 @@ logger = logging.getLogger('client')
 @log
 def handle_response(data, encoding):
     data = json.loads(data.decode(encoding))
-    if "response" in data:
+    print(data)
+    if "response" in data.keys():
+        print('in if handle')
         return data
     logger.critical('Некорректный формат данных')
     raise ValueError
@@ -42,7 +44,7 @@ def message_from_server(sock, my_username):
     while True:
         try:
             server_msg = sock.recv(int(CONFIG['MAX_PACKAGE_LENGTH']))
-            message = handle_response(sock, server_msg, CONFIG['ENCODING'])
+            message = handle_response(server_msg, CONFIG['ENCODING'])
             needed_keys = ["action", "time", "from", 'to', 'message']
 
             if Counter(needed_keys) == Counter(message.keys()):
@@ -85,13 +87,13 @@ def create_message(sock, account_name='Guest'):
         'message': message
     }
     logger.debug(f'Сформирован словарь сообщения: {message_dict}')
-    # try:
-    sending_msg(sock, message_dict, CONFIG['ENCODING'])
-    logger.info(f'Отправлено сообщение для пользователя {to_user}')
-    # except:
-    #
-    #     logger.critical('Потеряно соединение с сервером.')
-    #     sys.exit(1)
+    try:
+        sending_msg(sock, message_dict, CONFIG['ENCODING'])
+        logger.info(f'Отправлено сообщение для пользователя {to_user}')
+    except:
+
+        logger.critical('Потеряно соединение с сервером.')
+        sys.exit(1)
 
 
 def main():
@@ -103,55 +105,30 @@ def main():
         print('after send')
         response = s.recv(int(CONFIG['MAX_PACKAGE_LENGTH']))
         print('after recv')
+        print(f'type of responce --> {response}')
         answer = handle_response(response, CONFIG['ENCODING'])
-        logger.info(f'Установлено соединение с сервером. Ответ сервера: {answer}')
-
-        # while True:
-        # if connect_param['mode'] == 'write':
-        #     user_msg = input("Введите сообщение (q - выход): ")
-        #     if user_msg == 'q':
-        #         break
-        #     msg = {
-        #         "action": "msg",
-        #         "time": time.ctime(time.time()),
-        #         "user": {
-        #             "account_name": CONFIG['ACCOUNT_NAME'],
-        #             "msg": user_msg
-        #         }
-        #     }
-        #     sending_msg(s, msg, CONFIG["ENCODING"])
-        # elif connect_param['mode'] == 'listen':
-        #     data = s.recv(int(CONFIG["MAX_PACKAGE_LENGTH"]))
-        #     if data:
-        #         msg = handle_response(data, CONFIG["ENCODING"])
-        #         print(msg)
-        # else:
-        #     logger.error('Неверный параметр ввода')
-        #     break
-        s.close()
+        print(answer)
+        logger.info(f'Установлено соединение с сервером. Ответ сервера: {answer["alert"]}')
+        # s.close()
     except AttributeError:
         logger.error('Необходимо указать IP сервера')
         sys.exit()
     except ValueError:
         logger.critical('Значение порта должно быть от 1024 до 65535')
         sys.exit()
-    else:
         #####################################
-        lock = threading.Lock()
-        client_name = 'fiu'
-        lock.acquire()
-        receiver = threading.Thread(target=message_from_server, args=(s, client_name))
-        lock.release()
-        receiver.daemon = True
-        receiver.start()
-        receiver.join()
+    client_name = ''
+    receiver = threading.Thread(target=message_from_server, args=(s, client_name))
+    receiver.daemon = True
+    receiver.start()
 
-        user_interface = threading.Thread(target=user_interactive, args=(s, client_name))
-        user_interface.daemon = True
-        user_interface.start()
-        user_interface.join()
-        logger.info('Запущены процессы')
-        ##########################
+    user_interface = threading.Thread(target=user_interactive, args=(s, client_name))
+    user_interface.daemon = True
+    user_interface.start()
+    logger.info('Запущены процессы')
+    receiver.join()
+    user_interface.join()
+    ##########################
 
 
 if __name__ == '__main__':
