@@ -2,11 +2,9 @@ import json
 import logging
 import log.client_log_config
 import sys
-import time
 import threading
 import time
 from collections import Counter
-from pprint import pprint
 from socket import socket, AF_INET, SOCK_STREAM
 
 from decor_log import log
@@ -18,9 +16,7 @@ logger = logging.getLogger('client')
 @log
 def handle_response(data, encoding):
     data = json.loads(data.decode(encoding))
-    print(data)
     if "response" in data.keys():
-        print('in if handle')
         return data
     logger.critical('Некорректный формат данных')
     raise ValueError
@@ -48,12 +44,13 @@ def message_from_server(sock, my_username):
             needed_keys = ["action", "time", "from", 'to', 'message']
 
             if Counter(needed_keys) == Counter(message.keys()):
-                if message['action'] == 'msg' and message['from'] == my_username:
-
-                    logger.info(f'Получено сообщение от пользователя {message["from"]}:'
-                                f'\n{message["message"]}')
+                if message['action'] == 'msg' and message['from'] == \
+                        my_username:
+                    logger.info(f'Получено сообщение от пользователя '
+                                f'{message["from"]}:\n{message["message"]}')
                 else:
-                    logger.error(f'Получено некорректное сообщение с сервера: {message}')
+                    logger.error(f'Получено некорректное'
+                                 f'сообщение с сервера: {message}')
         except (OSError, ConnectionError, ConnectionAbortedError,
                 ConnectionResetError, json.JSONDecodeError):
             logger.critical(f'Потеряно соединение с сервером.')
@@ -62,7 +59,8 @@ def message_from_server(sock, my_username):
 
 def user_interactive(sock, username):
     print(f'Поддерживаемые команды:\n'
-          f'message - отправить сообщение. Кому и текст будет запрошены отдельно.\n'
+          f'message - отправить сообщение.'
+          f'Кому и текст будет запрошены отдельно.\n'
           f'exit - выход из программы\n')
     while True:
         command = input('Введите команду: ')
@@ -102,21 +100,15 @@ def main():
         connect_param = parser_argument(server=False)
         s.connect((connect_param['addr'], connect_param['port']))
         sending_msg(s, presence_message(CONFIG), CONFIG['ENCODING'])
-        print('after send')
         response = s.recv(int(CONFIG['MAX_PACKAGE_LENGTH']))
-        print('after recv')
-        print(f'type of responce --> {response}')
         answer = handle_response(response, CONFIG['ENCODING'])
-        print(answer)
         logger.info(f'Установлено соединение с сервером. Ответ сервера: {answer["alert"]}')
-        # s.close()
     except AttributeError:
         logger.error('Необходимо указать IP сервера')
         sys.exit()
     except ValueError:
         logger.critical('Значение порта должно быть от 1024 до 65535')
         sys.exit()
-        #####################################
     client_name = ''
     receiver = threading.Thread(target=message_from_server, args=(s, client_name))
     receiver.daemon = True
