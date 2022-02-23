@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, String, create_engine, DATETIME
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.schema import ForeignKey
 
-engine = create_engine('sqlite:///data_client.db', echo=True)
+engine = create_engine('sqlite:///data_client.db', echo=False)
 pool_recycle = 7200
 
 Base = declarative_base()

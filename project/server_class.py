@@ -8,16 +8,14 @@ from collections import Counter
 from socket import AF_INET, socket, SOCK_STREAM
 
 from decor_log import Log
-from util import CONFIG, parser_argument, sending_msg, ServerTyped, ServerPort
+from util import CONFIG, parser_argument, sending_msg, ServerPort, ServerTyped
 from sqlalchemy.orm import sessionmaker
-import bd_server
+from db_server import ServerDB
 # from PyQt5 import uic, QtWidgets
 # import admin_server
 
 logger = logging.getLogger('server')
-engine = bd_server.engine
-Session = sessionmaker(bind=engine)
-session = Session()
+
 
 # class Server_Win(QtWidgets.QWidget):
 #     def __init__(self, parent=None):
@@ -30,12 +28,13 @@ class Server(ServerTyped):
 
     port = ServerPort()
 
-    def __init__(self, logger):
+    def __init__(self, logger, db):
         try:
+            self.db = db
             connect_param = parser_argument()
-            print(f'port = {connect_param["port"]}')
             self.addr = connect_param['addr']
             self.port = connect_param['port']
+            print(f'addr = {self.addr}, port = {self.port}')
         except ValueError:
             logger.error('Значение порта должно быть от 1024 до 65535')
             sys.exit()
@@ -67,17 +66,18 @@ class Server(ServerTyped):
         return data
 
     @Log()
-    def forming_msg(self, data):
+    def forming_msg(self, data, addr):
         dir_key = {'presence_keys': ["action", "time", "user"],
                    'msg_keys': ["action", "time", "from", 'to', 'message'],
-                   'query_list': ["action", "time", "user_login"],
-                   'add_del_contact': ["action", "user_id", "time", "user_login"]}
+                   'query': ["action", "time", "user_login"]}
         if Counter(dir_key['presence_keys']) == Counter(data.keys()):
             msg = {
                 "response": 200,
                 "time": time.ctime(time.time()),
                 "alert": 'Alright'
             }
+            print(type(data['user']['account_name']), type(addr[0]), type(addr[1]))
+            self.db.login(data['user']['account_name'], addr[0], addr[1])
             logger.info(f'От клиента полученно сообщение: {data["user"]["message"]} в {data["time"]}')
         elif Counter(dir_key['msg_keys']) == Counter(data.keys()):
             msg = {
@@ -88,22 +88,17 @@ class Server(ServerTyped):
                 "message": data['message']
             }
             logger.info(f'От клиента {data["from"]} полученно сообщение: {data["message"]} в {data["time"]}')
-        elif Counter(dir_key['query_list']) == Counter(data.keys()):
-            q_user = session.query(bd_server.Client)
-            msg = {
-                {
-                    "response": "202",
-                    "alert": q_user
-                }
-            }
-        elif Counter(dir_key['add_del_contact']) == Counter(data.keys()):
-            logger.info(f'Принято сообщение об удалении/добавлении контакта')
-            # try:
-            print(f'data---->{data}')
-            self.change_db(data['action'][:3], data['user_login'], data['user_id'])
-            msg = {'response': 200}
-            # except AttributeError:
-            #     msg = {'response': 400}
+        elif Counter(dir_key['query']) == Counter(data.keys()):
+            if data['action'] == "get_contacts":
+                return self.db.users_list()
+            else:
+                logger.info(f'Принято сообщение об удалении/добавлении контакта')
+                # try:
+                print(f'data---->{data}')
+                self.db.change_db(data['action'][:3], data['user_login'])
+                msg = {'response': 200}
+                # except AttributeError:
+                #     msg = {'response': 400}
         else:
             msg = {
                 "response": 400,
@@ -117,7 +112,7 @@ class Server(ServerTyped):
         for s in resp:
             try:
                 data = s.recv(int(CONFIG['MAX_PACKAGE_LENGTH']))
-                requests[s] = self.forming_msg(self.handle_response(data))
+                requests[s] = self.forming_msg(self.handle_response(data), s.getsockname())
             except:
                 self.clients.remove(s)
         return requests
@@ -134,23 +129,11 @@ class Server(ServerTyped):
                 #     s.close()
                 #     self.clients.remove(s)
 
-    def change_db(self, command, login, name):
-        print(f'command = {command}, login = {login}')
-        if command == 'add':
-            new_contact = bd_server.Client(login, name)
-            session.add(new_contact)
-            session.commit()
-        elif command == 'del':
-            del_record = session.query(bd_server.Client).filter_by(login=login).filter_by(info=name).first()
-            session.delete(del_record)
-            session.commit()
-        else:
-            logger.error('Неизвестная команда!')
-            raise AttributeError
 
 
 def main():
-    server_s = Server(logger)
+    db = ServerDB()
+    server_s = Server(logger, db)
     server_s.server_connect()
     while True:
         try:

@@ -5,7 +5,18 @@ import socket
 
 from dotenv import dotenv_values
 
+import util
+
 CONFIG = dotenv_values()
+
+class ServerPort:
+    def __set__(self, instance, value):
+        if value not in range(1024, 65535):
+            raise ValueError("Значение вне разрешенного диапазона")
+        instance.__dict__[self.name] = value
+
+    def __set_name__(self, owner, name):
+        self.name = name
 
 
 class ClientVerify(type):
@@ -27,8 +38,9 @@ class ClientVerify(type):
 
 class ServerVerify(type):
     def __init__(self, clsname, bases, clsdict):
-
         for key, value in clsdict.items():
+            if isinstance(value, ServerPort):
+                continue
             method_dict = dis.Bytecode(value)
             if any(x.argrepr == 'connect' for x in method_dict):
                 raise AttributeError
@@ -45,16 +57,6 @@ class ServerTyped(metaclass=ServerVerify):
     pass
 
 
-class ServerPort:
-    def __set__(self, instance, value):
-        if value not in range(1024, 65535):
-            print(f'plus dir')
-            raise ValueError("Значение вне разрешенного диапазона")
-        instance.__dict__[self.name] = value
-
-    def __set_name__(self, owner, name):
-        self.name = name
-
 
 def sending_msg(sct, msg):
     json_message = json.dumps(msg)
@@ -70,6 +72,4 @@ def parser_argument(server=True):
     args = vars(parser.parse_args())
     if not args['addr'] and not server:
         raise AttributeError
-    # if not 65535 >= args['port'] >= 1024:
-    #     raise ValueError
     return args

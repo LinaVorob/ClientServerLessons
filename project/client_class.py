@@ -90,7 +90,7 @@ class Client(ClientTyped):
                 elif Counter(dir_key['presence_keys']) == Counter(message.keys()) and message["response"] == 200:
                     logger.info(f'Установлено соединение с сервером. Ответ сервера: {message["alert"]}')
                 elif Counter(dir_key['query_list']) == Counter(message.keys()) and message["response"] == 202:
-                    logger.info(f'Список пользователей\n{message["alert"]}:')
+                    logger.info(f'Список пользователей:\n{message["alert"]}')
                 elif Counter(dir_key['error']) == Counter(message.keys()) and message['response'] == 400:
                     logger.error(f'Ошибка: {message["error"]}')
                 elif Counter(dir_key['add_del']) == Counter(message.keys()):
@@ -124,8 +124,7 @@ class Client(ClientTyped):
                 self.list_of_client()
             elif command == 'add' or 'del':
                 login_contact = input('Введите логин контакта: ')
-                contact_name = input('Введите имя контакта: ')
-                self.change_db(command, login_contact, contact_name)
+                self.change_db(command, login_contact)
             else:
                 print('Команда не распознана, попробойте снова.')
 
@@ -161,10 +160,9 @@ class Client(ClientTyped):
         sending_msg(self.s, message)
         return message
 
-    def change_db(self, command, login_contact, name):
+    def change_db(self, command, login_contact):
         message = {
             "action": f'{command}_contact',
-            "user_id": name,
             "time": time.ctime(time.time()),
             "user_login": login_contact
         }
