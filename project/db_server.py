@@ -70,15 +70,15 @@ class ServerDB:
         if rez.count():
             user = rez.first()
             user.last_login = datetime.datetime.now()
-            print(user.id)
+            print(type(user))
         else:
             user = self.Users(username)
             self.session.add(user)
             self.session.commit()
-            print(f'new {user.id}')
-        new_active_user = self.ActiveUsers(port, user.id, ip)
-        self.session.add(new_active_user)
-        print(f'new_Active = {new_active_user}')
+            print(f'new {type(user)}')
+        # new_active_user = self.ActiveUsers(port, user.id, ip)
+        # self.session.add(new_active_user)
+        # print(f'new_Active = {new_active_user}')
         history = self.ClientHistory(user.id, ip, port)
         self.session.add(history)
         print(f'history = {history}')
@@ -87,14 +87,12 @@ class ServerDB:
 
     def logout(self, username):
         user = self.session.query(self.Users).filter_by(login=username).first()
-        self.session.query(self.ActiveUsers).filter_by(id_client=user.id).delete()
+        print(type(user))
+        self.session.query(self.ActiveUsers).filter_by(user_id=user.id).delete()
         self.session.commit()
 
     def users_list(self):
-        query = self.session.query(
-            self.Users.login,
-            self.Users.last_enter,
-        )
+        query = self.session.query(self.Users.login)
         return query.all()
 
     def active_users_list(self):
@@ -112,7 +110,6 @@ class ServerDB:
                                    self.ClientHistory.ip_address,
                                    self.ClientHistory.user_port
                                    ).join(self.Users)
-        # Если было указано имя пользователя, то фильтруем по нему
         if username:
             query = query.filter(self.Users.login == username)
         return query.all()
@@ -121,13 +118,13 @@ class ServerDB:
         print(f'command = {command}, login = {name}')
         if command == 'add':
             print('in add')
-            new_contact = ServerDB.Users(name)
+            new_contact = self.Users(name)
             print(new_contact)
             self.session.add(new_contact)
             self.session.commit()
         elif command == 'del':
             print('in del')
-            del_record = self.session.query(ServerDB.Users).filter_by(login=name).first()
+            del_record = self.session.query(self.Users).filter_by(login=name).first()
             self.session.delete(del_record)
             self.session.commit()
         else:
@@ -141,7 +138,7 @@ if __name__ == '__main__':
     # выводим список кортежей - активных пользователей
     print(test_db.active_users_list())
     # выполянем 'отключение' пользователя
-    test_db.logout('client_1')
+    test_db.logout('client_2')
     # выводим список активных пользователей
     print(test_db.active_users_list())
     # запрашиваем историю входов по пользователю

@@ -1,4 +1,7 @@
+import sys
+
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import QApplication, QMessageBox
 
 import server_class
 from util import CONFIG
@@ -67,3 +70,28 @@ class Ui_Server_int(object):
         # print(f'{self.text_ip.toPlainText()}\n{self.text_port.toPlainText()}')
         server_class.main(int(self.text_port.toPlainText()), self.text_ip.toPlainText())
 
+
+class ConfigWindow:
+    pass
+
+
+if __name__ == '__main__':
+
+    '''
+    app = QApplication(sys.argv)
+    ex = MainWindow()
+    ex.statusBar().showMessage('Test Statusbar Message')
+    test_list = QStandardItemModel(ex)
+    test_list.setHorizontalHeaderLabels(['Имя Клиента', 'IP Адрес', 'Порт', 'Время подключения'])
+    test_list.appendRow([QStandardItem('1'), QStandardItem('2'), QStandardItem('3')])
+    test_list.appendRow([QStandardItem('4'), QStandardItem('5'), QStandardItem('6')])
+    ex.active_clients_table.setModel(test_list)
+    ex.active_clients_table.resizeColumnsToContents()
+    print('JKJKJK')
+    app.exec_()
+    print('END')'''
+    app = QApplication(sys.argv)
+    message = QMessageBox
+    dial = ConfigWindow()
+
+    app.exec_()

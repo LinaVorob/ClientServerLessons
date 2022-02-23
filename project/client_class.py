@@ -90,7 +90,7 @@ class Client(ClientTyped):
                 elif Counter(dir_key['presence_keys']) == Counter(message.keys()) and message["response"] == 200:
                     logger.info(f'Установлено соединение с сервером. Ответ сервера: {message["alert"]}')
                 elif Counter(dir_key['query_list']) == Counter(message.keys()) and message["response"] == 202:
-                    logger.info(f'Список пользователей:\n{message["alert"]}')
+                    logger.info(f'Список пользователей:\n{", ".join(message["alert"])}')
                 elif Counter(dir_key['error']) == Counter(message.keys()) and message['response'] == 400:
                     logger.error(f'Ошибка: {message["error"]}')
                 elif Counter(dir_key['add_del']) == Counter(message.keys()):
@@ -171,7 +171,7 @@ class Client(ClientTyped):
         return message
 
     def add_contact(self, to_user):
-        q_user = session.query(db_client.Contacts).filter_by(name=to_user)
+        q_user = session.query(db_client.Contacts).filter_by(login=to_user)
         if q_user is None:
             new_contact = db_client.Contacts(to_user, 'info')
             session.add(new_contact)
