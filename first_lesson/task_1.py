@@ -30,3 +30,4 @@ for word in words_bytes:
 # Значение: декоратор
 # Тип: <class 'str'>
 
+
