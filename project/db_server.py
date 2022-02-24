@@ -76,9 +76,11 @@ class ServerDB:
             self.session.add(user)
             self.session.commit()
             print(f'new {type(user)}')
-        # new_active_user = self.ActiveUsers(port, user.id, ip)
-        # self.session.add(new_active_user)
-        # print(f'new_Active = {new_active_user}')
+        #проблемный кусок
+        new_active_user = self.ActiveUsers(port, user.id, ip)
+        self.session.add(new_active_user)
+        print(f'new_Active = {new_active_user}')
+        #конец куска
         history = self.ClientHistory(user.id, ip, port)
         self.session.add(history)
         print(f'history = {history}')
