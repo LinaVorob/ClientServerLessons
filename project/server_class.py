@@ -24,23 +24,18 @@ logger = logging.getLogger('server')
 new_connection = False
 conflag_lock = threading.Lock()
 
-class Server_Win(QtWidgets.QWidget):
-    def __init__(self, parent=None):
-        QtWidgets.QWidget.__init__(self, parent)
-        self.ui = admin_server.Ui_Server_int()
-        self.ui.setupUi(self)
 
-
-class Server(threading.Thread, metaclass=ServerTyped):
-
+class Server(threading.Thread):
+    __metaclass__ = ServerTyped
     port = ServerPort()
 
-    def __init__(self, logger, db, port, ip):
+    def __init__(self, logger, db, param):
+        super(Server, self).__init__()
         try:
             self.db = db
-            # connect_param = parser_argument()
-            self.addr = ip #connect_param['addr']
-            self.port = port #connect_param['port']
+            # connect_param = #parser_argument()
+            self.addr = param[1] #connect_param['addr']
+            self.port = int(param[0]) #connect_param['port']
             print(f'addr = {self.addr}, port = {self.port}')
         except ValueError:
             logger.error('Значение порта должно быть от 1024 до 65535')
@@ -51,7 +46,7 @@ class Server(threading.Thread, metaclass=ServerTyped):
         self.logger = logger
         self.clients = []
 
-    def server_connect(self) -> None:
+    def server_connect(self):
         self.s = socket(AF_INET, SOCK_STREAM)
         self.s.bind((self.addr, self.port))
         self.s.listen(int(CONFIG["MAX_CONNECTIONS"]))
@@ -104,6 +99,7 @@ class Server(threading.Thread, metaclass=ServerTyped):
                 "time": time.ctime(time.time()),
                 "alert": 'Alright'
             }
+            # Запускается, когда новый клиент пытается подключиться к серверу
             self.db.login(data['user']['account_name'], addr[0], addr[1])
             with conflag_lock:
                 new_connection = True
@@ -156,26 +152,33 @@ class Server(threading.Thread, metaclass=ServerTyped):
     def write_response(self, requests, w):
         for s in w:
             if s in requests:
-                # try:
-                resp = requests[s]
-                print(f'resp ===>> {resp}')
-                sending_msg(s, resp)
-                # except:
-                #     s.close()
-                #     self.clients.remove(s)
+                try:
+                    resp = requests[s]
+                    print(f'resp ===>> {resp}')
+                    sending_msg(s, resp)
+                except:
+                    s.close()
+                    self.clients.remove(s)
 
-def main(port, ip):
+def main():
     db = ServerDB()
-    server_s = Server(logger, db, port, ip)
-    server_s.daemon = True
-    server_s.start()
 
     server_app = QApplication(sys.argv)
     main_window = ServerInterface()
+
+    # По нажатию кнопки "Подключить" запускает сервер
+    def start_server():
+        param = main_window.get_connect_param()
+        print(param)
+        server_s = Server(logger, db, param)
+        server_s.daemon = True
+        server_s.start()
+
     main_window.statusBar().showMessage('Server is active')
     main_window.active_clients_table.setModel(gui_create_model(db))
     main_window.active_clients_table.resizeColumnsToContents()
     main_window.active_clients_table.resizeRowsToContents()
+    main_window.connect_btn.clicked.connect(start_server)
 
     def list_update():
         global new_connection
@@ -187,50 +190,6 @@ def main(port, ip):
         with conflag_lock:
             new_connection = False
 
-    # Функция создающяя окно со статистикой клиентов
-    # def show_statistics():
-    #     global stat_window
-    #     stat_window = HistoryWindow()
-    #     stat_window.history_table.setModel(create_stat_model(database))
-    #     stat_window.history_table.resizeColumnsToContents()
-    #     stat_window.history_table.resizeRowsToContents()
-    #     stat_window.show()
-
-    # Функция создающяя окно с настройками сервера.
-    # def server_config():
-    #     global config_window
-    #     # Создаём окно и заносим в него текущие параметры
-    #     config_window = ConfigWindow()
-    #     config_window.db_path.insert(config['SETTINGS']['Database_path'])
-    #     config_window.db_file.insert(config['SETTINGS']['Database_file'])
-    #     config_window.port.insert(config['SETTINGS']['Default_port'])
-    #     config_window.ip.insert(config['SETTINGS']['Listen_Address'])
-    #     config_window.save_btn.clicked.connect(save_server_config)
-
-    # Функция сохранения настроек
-    # def save_server_config():
-    #     global config_window
-    #     message = QMessageBox()
-    #     config['SETTINGS']['Database_path'] = config_window.db_path.text()
-    #     config['SETTINGS']['Database_file'] = config_window.db_file.text()
-    #     try:
-    #         port = int(config_window.port.text())
-    #     except ValueError:
-    #         message.warning(config_window, 'Ошибка', 'Порт должен быть числом')
-    #     else:
-    #         config['SETTINGS']['Listen_Address'] = config_window.ip.text()
-    #         if 1023 < port < 65536:
-    #             config['SETTINGS']['Default_port'] = str(port)
-    #             print(port)
-    #             with open('server.ini', 'w') as conf:
-    #                 config.write(conf)
-    #                 message.information(
-    #                     config_window, 'OK', 'Настройки успешно сохранены!')
-    #         else:
-    #             message.warning(
-    #                 config_window,
-    #                 'Ошибка',
-    #                 'Порт должен быть от 1024 до 65536')
 
     # Таймер, обновляющий список клиентов 1 раз в секунду
     timer = QTimer()
@@ -238,16 +197,13 @@ def main(port, ip):
     timer.start(1000)
 
     # Связываем кнопки с процедурами
-    main_window.refresh_button.triggered.connect(list_update)
+    main_window.refresh.triggered.connect(list_update)
     # main_window.show_history_button.triggered.connect(show_statistics)
     # main_window.config_btn.triggered.connect(server_config)
 
     # Запускаем GUI
     server_app.exec_()
 
+
 if __name__ == '__main__':
-    # app = QtWidgets.QApplication(sys.argv)
-    # window = Server_Win()
-    # window.show()
-    # sys.exit(app.exec())
     main()

@@ -7,27 +7,29 @@ from sqlalchemy.schema import ForeignKey
 class ServerDB:
 
     Base = declarative_base()
-    engine = create_engine('sqlite:///data.db', echo=False, pool_recycle=7200)
+    engine = create_engine('sqlite:///data.db', echo=True, pool_recycle=7200)
 
     class Users(Base):
         __tablename__ = 'users'
-        id = Column(Integer(), primary_key=True)
-        login = Column(String(), unique=True)
+        id = Column(Integer, primary_key=True)
+        login = Column(String, unique=True)
         last_enter = Column(DATETIME)
+        status = Column(String, nullable=False)
 
-        def __init__(self, login):
+        def __init__(self, login, status):
             self.login = login
             self.last_enter = datetime.datetime.now()
+            self.status = status
 
         def __repr__(self):
             return f"<Client({self.login}, time: {self.last_enter})>"
 
     class ClientHistory(Base):
         __tablename__ = 'login_history'
-        id = Column(Integer(), primary_key=True)
-        user_port = Column(Integer())
-        ip_address = Column(String(), nullable=False)
-        user_id = Column(Integer(), ForeignKey('users.id'))
+        id = Column(Integer, primary_key=True)
+        user_port = Column(Integer)
+        ip_address = Column(String, nullable=False)
+        user_id = Column(Integer, ForeignKey('users.id'))
         login_time = Column(DATETIME)
 
         def __init__(self, user_id, ip_address, user_port):
@@ -39,47 +41,65 @@ class ServerDB:
         def __repr__(self):
             return f"<Time = {self.login_time} by {self.ip_address}>"
 
-    class ActiveUsers(Base):
-        __tablename__ = 'list_of_client_online'
-        id = Column(Integer(), primary_key=True)
-        port = Column(Integer())
-        ip_user = Column(String(), nullable=False)
-        user_id = Column(Integer(), ForeignKey('users.id'))
-        login_time = Column(DATETIME)
-
-        def __init__(self, port, id_client, ip_user):
-            self.port = port
-            self.ip_user = ip_user
-            self.login_time = datetime.datetime.now()
-            self.user_id = id_client
-
-        def __repr__(self):
-            return f"User {self.ip_user} {self.port} enter in {self.login_time}"
+    # class ActiveUsers(Base):
+    #     __tablename__ = 'list_of_client_online'
+    #     id = Column(Integer(), primary_key=True)
+    #     port = Column(Integer())
+    #     ip_user = Column(String(), nullable=False)
+    #     user_id = Column(Integer(), ForeignKey('users.id'))
+    #     login_time = Column(DATETIME)
+    #
+    #     def __init__(self, port, id_client, ip_user):
+    #         self.port = port
+    #         self.ip_user = ip_user
+    #         self.login_time = datetime.datetime.now()
+    #         self.user_id = id_client
+    #
+    #     def __repr__(self):
+    #         return f"User {self.ip_user} {self.port} enter in {self.login_time}"
 
     Base.metadata.create_all(engine)
 
     def __init__(self):
         Session = sessionmaker(bind=self.engine)
         self.session = Session()
-        self.session.query(self.ActiveUsers).delete()
+        self.session.expire_on_commit = False
+        online_users = self.session.query(self.Users).filter_by(status='online')
+        print(online_users)
+        for user in online_users:
+            user.status = 'offline'
         self.session.commit()
 
     def login(self, username, ip, port):
+        '''
+
+        :param username:
+        :param ip:
+        :param port:
+
+        Добавляет в таблицу Users нового пользователя, если его нет, либо меняет у
+        существующего время последнего захода и статус
+        '''
         print(f'name = {username}, ip = {ip}, port = {port}')
-        rez = self.session.query(self.Users).filter_by(login=username)
+        rez = self.session.query(self.Users).filter(self.Users.login == username)
+        print(rez)
         if rez.count():
+            print('in if')
             user = rez.first()
             user.last_login = datetime.datetime.now()
+            user.status = 'online'
             print(type(user))
         else:
-            user = self.Users(username)
+            print('in else')
+            user = self.Users(username, 'online')
             self.session.add(user)
+            print(f'user -> {user}')
             self.session.commit()
             print(f'new {type(user)}')
         #проблемный кусок
-        new_active_user = self.ActiveUsers(port, user.id, ip)
-        self.session.add(new_active_user)
-        print(f'new_Active = {new_active_user}')
+        # new_active_user = self.ActiveUsers(port, user.id, ip)
+        # self.session.add(new_active_user)
+        # print(f'new_Active = {new_active_user}')
         #конец куска
         history = self.ClientHistory(user.id, ip, port)
         self.session.add(history)
@@ -90,7 +110,7 @@ class ServerDB:
     def logout(self, username):
         user = self.session.query(self.Users).filter_by(login=username).first()
         print(type(user))
-        self.session.query(self.ActiveUsers).filter_by(user_id=user.id).delete()
+        user.status = 'offline'
         self.session.commit()
 
     def users_list(self):
@@ -98,12 +118,7 @@ class ServerDB:
         return query.all()
 
     def active_users_list(self):
-        query = self.session.query(
-            self.Users.login,
-            self.ActiveUsers.ip_user,
-            self.ActiveUsers.port,
-            self.ActiveUsers.login_time
-        ).join(self.Users)
+        query = self.session.query(self.Users.login).filter_by(status='online')
         return query.all()
 
     def login_history(self, username=None):
@@ -120,7 +135,7 @@ class ServerDB:
         print(f'command = {command}, login = {name}')
         if command == 'add':
             print('in add')
-            new_contact = self.Users(name)
+            new_contact = self.Users(name, 'offline')
             print(new_contact)
             self.session.add(new_contact)
             self.session.commit()
@@ -131,6 +146,7 @@ class ServerDB:
             self.session.commit()
         else:
             raise AttributeError
+
 
 if __name__ == '__main__':
     test_db = ServerDB()
